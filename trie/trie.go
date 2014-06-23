@@ -4,7 +4,7 @@ import (
 	"github.com/rdpitts/eratos/record"
 )
 
-type Branches map[uint64]*Trie
+type Branches []*Trie
 
 type Trie struct {
 	Label   uint64
@@ -14,15 +14,25 @@ type Trie struct {
 }
 
 func (t *Trie) AddLeaf(label uint64) *Trie {
+	n := &Trie{Label: label}
 	if t.Branches == nil {
-		t.Branches = make(map[uint64]*Trie)
+		t.Branches = make([]*Trie, 1, 4)
+		t.Branches[0] = n
+	} else {
+		t.Branches = append(t.Branches, n)
 	}
-	t.Branches[label] = &Trie{Label: label}
-	return t.Branches[label]
+	return n
 }
 
-func (t *Trie) FindBranch(label uint64) *Trie {
-	return t.Branches[label]
+func (t *Trie) FetchBranch(label uint64) *Trie {
+	var fetched *Trie
+	for _, b := range t.Branches {
+		if b.Label == label {
+			fetched = b
+			break
+		}
+	}
+	return fetched
 }
 
 func (t *Trie) IncrementNode() {
@@ -37,7 +47,7 @@ func (t *Trie) IncrementTrie(attrs ...record.Attribute) {
 		// Iterate through attributes
 		for i, a := range attrs {
 			// Find the current attribute in the trie's branches
-			if f := t.FindBranch(a.Label); f != nil {
+			if f := t.FetchBranch(a.Label); f != nil {
 				// Increment the found trie with all but current attribute
 				f.IncrementTrie(attrs[i+1:]...)
 			}
@@ -51,7 +61,7 @@ func (t *Trie) IsLeaf() bool {
 
 func (t *Trie) Search(attrs ...record.Attribute) *Trie {
 	for i, a := range attrs {
-		if f := t.FindBranch(a.Label); f != nil {
+		if f := t.FetchBranch(a.Label); f != nil {
 			t = f.Search(attrs[i+1:]...)
 		}
 	}
